@@ -1,6 +1,8 @@
 import { models, sequelize, initConnection } from "./models/index.js";
-import { db, awsCredentials, baseUrl } from "./configuration.js";
-import { CrateBuilder } from "./src/crate.js";
+import { db, awsConfig, baseUrl } from "./configuration.js";
+import { CrateBuilder, Crate } from "./src/crate.js";
+import { getS3Handle } from "./src/getS3Handle.js";
+import path from "path";
 
 await initConnection({ db });
 try {
@@ -31,6 +33,17 @@ async function exportItems({ entityType = "Dataset" }) {
         let crate = new CrateBuilder({ baseUrl });
         await crate.load({ rootDatasetId: item.id });
         crate = crate.export();
-        console.log(JSON.stringify(crate, null, 2));
+
+        let { bucket } = await getS3Handle({ configuration: awsConfig });
+
+        crate = new Crate({ crate });
+        const rootDataset = crate.getRootDataset();
+        const identifier = rootDataset?.identifier.replace(baseUrl, "");
+
+        await bucket.upload({
+            target: path.join(identifier, "ro-crate-metadata.json"),
+            json: crate,
+        });
+        // console.log(bucket);
     }
 }

@@ -58,3 +58,19 @@ export class CrateBuilder {
         return crate;
     }
 }
+
+export class Crate {
+    constructor({ crate }) {
+        this.crate = crate;
+        this.rootDescriptor = this.crate["@graph"].filter(
+            (e) => e["@type"] === "CreativeWork" && e["@id"] === "ro-crate-metadata.json"
+        )[0];
+        this.rootDataset = this.crate["@graph"].filter(
+            (e) => e["@id"] === this.rootDescriptor.about["@id"]
+        )[0];
+    }
+
+    getRootDataset() {
+        return this.rootDataset;
+    }
+}
