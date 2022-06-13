@@ -1,44 +1,46 @@
 import { models } from "../models/index.js";
 import pkg from "lodash";
-const { groupBy } = pkg;
+const { groupBy, compact } = pkg;
 import validator from "validator";
+import { CrateBuilder } from "./crate.js";
 
-export class Items {
-    constructor({ entityType }) {
-        if (!entityType) {
-            console.log(`'entityType' must be provided when instantiating 'Items'`);
-            return;
-        }
-        this.entityType = entityType;
-    }
+// export class Items {
+//     constructor({ entityType }) {
+//         if (!entityType) {
+//             console.log(`'entityType' must be provided when instantiating 'Items'`);
+//             return;
+//         }
+//         this.entityType = entityType;
+//     }
 
-    async loadItems({ baseUrl }) {
-        if (!this.entityType) return;
-        for (let item of await models.item.findAll({
-            where: {
-                "$id_resource.resource_class.local_name$": this.entityType,
-            },
-            include: [
-                {
-                    model: models.resource,
-                    as: "id_resource",
-                    include: [{ model: models.resource_class, as: "resource_class" }],
-                },
-            ],
-        })) {
-            item = new Item({ item, baseUrl });
-            await item.load();
-            // item.exportCrate();
-        }
-    }
-}
+//     async loadItems({ baseUrl }) {
+//         if (!this.entityType) return;
+//         for (let item of await models.item.findAll({
+//             where: {
+//                 "$id_resource.resource_class.local_name$": this.entityType,
+//             },
+//             include: [
+//                 {
+//                     model: models.resource,
+//                     as: "id_resource",
+//                     include: [{ model: models.resource_class, as: "resource_class" }],
+//                 },
+//             ],
+//         })) {
+//             // console.log(item);
+//             let crate = new CrateBuilder({ baseUrl });
+//             await crate.load({ rootDatasetId: item.id });
+//             // crate = crate.export();
+//             // console.log(JSON.stringify(crate, null, 2));
+//         }
+//     }
+// }
 
-class Item {
-    constructor({ item, baseUrl }) {
-        this.item = item;
+export class Item {
+    constructor({ baseUrl, id, asRootDataset = false }) {
+        this.id = id;
         this.baseUrl = baseUrl;
-        this.graph = [];
-        this.conext = [];
+        this.asRootDataset = asRootDataset;
         this.rootDataset = {
             "@id": "./",
             "@type": "Dataset",
@@ -47,50 +49,70 @@ class Item {
     }
 
     async load() {
-        let properties = await this.getProperties({ resource: this.item.id_resource });
+        let item = await models.item.findOne({
+            where: {
+                id: this.id,
+            },
+            include: [
+                {
+                    model: models.resource,
+                    as: "id_resource",
+                    include: [
+                        { model: models.resource_class, as: "resource_class" },
+                        { model: models.value, as: "values" },
+                    ],
+                },
+            ],
+        });
+        let properties = await this.getProperties({ resource: item.id_resource });
 
-        let rootDataset = {
-            ...this.rootDataset,
-            name: this.item.id_resource.title,
-            ...properties,
-        };
-        console.log(JSON.stringify(rootDataset, null, 2));
-        console.log(this.relatedItems);
+        if (this.asRootDataset) {
+            const type =
+                item.id_resource.resource_class.local_name === "Dataset"
+                    ? ["Dataset", "RepositoryObject"]
+                    : ["Dataset", "RepositoryCollection"];
+
+            item = {
+                ...this.rootDataset,
+                "@type": type,
+                name: item.id_resource.title,
+                ...properties,
+            };
+        } else {
+            let identifier = properties.identifier[0];
+            item = {
+                "@id": identifier,
+                "@type": item.id_resource.resource_class.local_name,
+                name: item.id_resource.title,
+                ...properties,
+            };
+        }
+        return { item, relatedItems: this.relatedItems };
     }
 
-    exportCrate() {
-        let crate = {
-            "@context": [],
-            "@graph": [this.rootDataset],
-        };
-        this.rootDataset.name = this.item.id_resource.title;
-        console.log(JSON.stringify(crate, null, 2));
-    }
+    // async getItem({ item }) {
+    //     let resource = await item.getId_resource();
 
-    async getItem({ item, depth = 0 }) {
-        if (depth > 1) return;
-        let resource = await item.getId_resource();
+    //     // const media = await getMedia({ item });
+    //     const owner = await getOwner({ resource });
+    //     const resourceClass = await getResourceClass({ resource });
+    //     const properties = await getProperties({ resource });
+    //     const thumbnail = await getThumbnail({ resource });
 
-        // const media = await getMedia({ item });
-        const owner = await getOwner({ resource });
-        const resourceClass = await getResourceClass({ resource });
-        const properties = await getProperties({ resource, depth });
-        const thumbnail = await getThumbnail({ resource });
+    //     item = {
+    //         id: item.id,
+    //         title: resource.title,
+    //         is_public: resource.is_public,
+    //         resource_type: resource.resource_type,
+    //         // media,
+    //         owner,
+    //         resourceClass,
+    //         properties,
+    //         thumbnail,
+    //     };
 
-        item = {
-            id: item.id,
-            title: resource.title,
-            is_public: resource.is_public,
-            resource_type: resource.resource_type,
-            // media,
-            owner,
-            resourceClass,
-            properties,
-            thumbnail,
-        };
-
-        return item;
-    }
+    //     return item;
+    // }
 
     async getOwner({ resource }) {
         let attributes = ["email", "name", "role", "is_active"];
@@ -121,7 +143,11 @@ class Item {
             let property = await v.getProperty({ attributes });
 
             if (property.local_name === "identifier") {
-                v.value = `${this.baseUrl}/Item/${v.value.replace(/\s/g, "_")}`;
+                if (resource.resource_class.local_name === "Collection") {
+                    v.value = this.identifier({ className: "collections", identifier: v.value });
+                } else if (resource.resource_class.local_name === "Dataset") {
+                    v.value = this.identifier({ className: "items", identifier: v.value });
+                }
             }
             if (v.value) {
                 properties.push({ ...property.get(), value: v.value });
@@ -134,22 +160,16 @@ class Item {
             // }
 
             let valueResource = await v.getValue_resource();
-            let resource;
             if (valueResource) {
                 if (valueResource?.resource_type === "Omeka\\Entity\\Media") {
-                    resource = await this.getRelatedMedia({ id: valueResource.id });
+                    valueResource = await this.getRelatedMedia({ id: valueResource.id });
                 } else if (valueResource?.resource_type === "Omeka\\Entity\\Item") {
-                    resource = await this.getRelatedItem({ id: valueResource.id });
+                    valueResource = await this.getRelatedItem({ id: valueResource.id });
                 }
-
-                // attributes = ["label", "prefix", "comment", "namespace_uri"];
-                // let vocab = await property.getVocabulary({ attributes });
 
                 let p = {
                     ...property.get(),
-                    // vocab: vocab.get(),
-                    // annotation: annotation?.get(),
-                    resource,
+                    resource: valueResource,
                 };
                 properties.push(p);
             }
@@ -159,7 +179,9 @@ class Item {
             properties[property] = properties[property].map((entry) =>
                 entry.resource ? entry.resource : entry.value
             );
+            if (properties[property].length === 1) properties[property] = properties[property][0];
         });
+
         delete properties.title;
         return properties;
     }
@@ -171,32 +193,25 @@ class Item {
     async getRelatedItem({ id }) {
         let item = await models.item.findOne({
             where: { id },
-            include: [
-                {
-                    model: models.resource,
-                    as: "id_resource",
-                    include: [{ model: models.resource_class, as: "resource_class" }],
-                },
-            ],
+            include: [{ model: models.resource, as: "id_resource" }],
         });
         const resource = item.id_resource;
         const resourceClass = await resource.getResource_class();
-        const properties = await resource.getValues({
+        let properties = await resource.getValues({
             include: [{ model: models.property, as: "property" }],
         });
-        let idProperty = properties.filter((p) => {
-            return p.property.local_name === "identifier";
-        })[0];
-
         let reference = {
             omekaId: item.id,
             type: resourceClass.local_name,
             value: {
-                "@id": this.getId(resourceClass.local_name, idProperty.value),
+                "@id": this.getIdentifier({
+                    properties,
+                    title: resource.title,
+                    className: resourceClass.local_name,
+                }),
             },
         };
         this.relatedItems.push(reference);
-
         return reference.value;
     }
 
@@ -219,12 +234,31 @@ class Item {
         return m;
     }
 
-    getId(className, value) {
-        if (validator.isURL(value)) {
-            return value;
+    getIdentifier({ properties, title, className }) {
+        let identifier;
+        let idProperty = properties.filter((p) => {
+            return p.property.local_name === "identifier";
+        });
+        if (idProperty.length) {
+            identifier = idProperty[0].value;
         } else {
-            value = value.replace(/\s/g, "_");
-            return `${this.baseUrl}/${className}/#${value}`;
+            identifier = title;
+        }
+        return this.identifier({ className, identifier });
+    }
+
+    identifier({ className, identifier }) {
+        if (validator.isURL(identifier)) {
+            return identifier;
+        } else {
+            identifier = identifier.replace(/\s/g, "_");
+            if (className === "items" || className === "Dataset") {
+                return `${this.baseUrl}/items/${identifier}`;
+            } else if (className === "collections" || className === "Collection") {
+                return `${this.baseUrl}/collections/${identifier}`;
+            } else {
+                return `${this.baseUrl}/${className}/#${identifier}`;
+            }
         }
     }
 }

@@ -1,14 +1,13 @@
 import { models, sequelize, initConnection } from "./models/index.js";
 import { db, awsCredentials, baseUrl } from "./configuration.js";
-import { Items } from "./src/item.js";
-import { getItemSet } from "./src/itemSet.js";
+import { CrateBuilder } from "./src/crate.js";
 
 await initConnection({ db });
 try {
     await sequelize.authenticate();
     // console.log("Connected to the db!");
-    await exportItems({});
-    // await exportItemSets();
+    await exportItems({ entityType: "Dataset" });
+    await exportItems({ entityType: "Collection" });
 
     await sequelize.close();
 } catch (error) {
@@ -17,12 +16,21 @@ try {
 }
 
 async function exportItems({ entityType = "Dataset" }) {
-    const items = new Items({ entityType });
-    await items.loadItems({ baseUrl });
+    for (let item of await models.item.findAll({
+        where: {
+            "$id_resource.resource_class.local_name$": entityType,
+        },
+        include: [
+            {
+                model: models.resource,
+                as: "id_resource",
+                include: [{ model: models.resource_class, as: "resource_class" }],
+            },
+        ],
+    })) {
+        let crate = new CrateBuilder({ baseUrl });
+        await crate.load({ rootDatasetId: item.id });
+        crate = crate.export();
+        console.log(JSON.stringify(crate, null, 2));
+    }
 }
-
-// export async function exportItemSets() {
-//     for (let itemSet of await models.item_set.findAll({ attributes: ["id"] })) {
-//         let item = await getItemSet({ id: itemSet.id });
-//     }
-// }
