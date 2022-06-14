@@ -143,9 +143,18 @@ export class Item {
 
             if (property.local_name === "identifier") {
                 if (resource.resource_class.local_name === "Collection") {
-                    v.value = this.identifier({ className: "collections", identifier: v.value });
+                    v.value = this.identifier({ className: "collection", identifier: v.value });
                 } else if (resource.resource_class.local_name === "Dataset") {
-                    v.value = this.identifier({ className: "items", identifier: v.value });
+                    v.value = this.identifier({ className: "item", identifier: v.value });
+                } else {
+                    let value = v.value;
+                    if (validator.isURL(v.value)) {
+                        value = resource.title;
+                    }
+                    v.value = this.identifier({
+                        className: resource.resource_class.local_name,
+                        identifier: value,
+                    });
                 }
             }
             if (v.value) {
@@ -251,12 +260,12 @@ export class Item {
             return identifier;
         } else {
             identifier = identifier.replace(/\s/g, "_");
-            if (className === "items" || className === "Dataset") {
-                return `${this.baseUrl}/items/${identifier}`;
-            } else if (className === "collections" || className === "Collection") {
-                return `${this.baseUrl}/collections/${identifier}`;
+            if (["item", "dataset"].includes(className.toLowerCase())) {
+                return `${this.baseUrl}/item/${identifier}`;
+            } else if (["collection"].includes(className.toLowerCase())) {
+                return `${this.baseUrl}/collection/${identifier}`;
             } else {
-                return `${this.baseUrl}/${className}/#${identifier}`;
+                return `${this.baseUrl}/${className.toLowerCase()}/#${identifier}`;
             }
         }
     }
