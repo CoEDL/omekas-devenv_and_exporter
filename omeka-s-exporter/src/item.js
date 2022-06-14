@@ -2,7 +2,7 @@ import { models } from "../models/index.js";
 import pkg from "lodash";
 const { groupBy, compact } = pkg;
 import validator from "validator";
-import { CrateBuilder } from "./crate.js";
+import { configuration } from "../configuration.js";
 
 // export class Items {
 //     constructor({ entityType }) {
@@ -67,10 +67,9 @@ export class Item {
         let properties = await this.getProperties({ resource: item.id_resource });
 
         if (this.asRootDataset) {
-            const type =
-                item.id_resource.resource_class.local_name === "Dataset"
-                    ? ["Dataset", "RepositoryObject"]
-                    : ["Dataset", "RepositoryCollection"];
+            const type = configuration.typeToAtTypeMapping[
+                item.id_resource.resource_class.local_name
+            ] || ["Dataset", item.id_resource.resource_class.local_name];
 
             item = {
                 ...this.rootDataset,
