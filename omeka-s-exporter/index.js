@@ -48,7 +48,7 @@ async function exportItems({ entityType = "Dataset" }) {
 
         await bucket.upload({
             target: path.join(identifier, "ro-crate-metadata.json"),
-            json: crate,
+            json: crate.getCrate(),
         });
         if (rootDataset.hasPart) {
             for (let part of rootDataset.hasPart) {
