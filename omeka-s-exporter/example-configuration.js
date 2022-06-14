@@ -1,21 +1,27 @@
-export const db = {
-    username: "user",
-    password: "password",
-    host: "localhost",
-    port: "3306",
-    dialect: "mysql",
-    database: "omeka",
-    logging: false,
-};
+export const configuration = {
+    db: {
+        username: "user",
+        password: "password",
+        host: "localhost",
+        port: "3306",
+        dialect: "mysql",
+        database: "omeka",
+        logging: false,
+    },
 
-export const awsConfig = {
-    forcePathStyle: true,
-    endpointUrl: "http://localhost:10000",
-    awsAccessKey: "root",
-    awsSecretAccessKey: "rootpass",
-    bucket: "repository",
-    region: "us-east-1",
+    awsConfig: {
+        forcePathStyle: true,
+        endpointUrl: "https://s3.nyingarn.net",
+        awsAccessKeyId: "",
+        awsSecretAccessKey: "",
+        bucket: "",
+        region: "us-east-1",
+    },
+    baseUrl: "http://catalog.cherokee.org",
+    pathToFiles: "",
+    entityTypesToExport: ["Dataset", "Collection", "Person"],
+    typeToAtTypeMapping: {
+        Dataset: ["Dataset", "RepositoryObject"],
+        Collection: ["Dataset", "RepositoryCollection"],
+    },
 };
-
-// the URL of the repository you intend to run
-export const baseUrl = "http://catalog.cherokee.org";
