@@ -44,13 +44,12 @@ async function exportItems({ entityType = "Dataset" }) {
         crate = new Crate({ crate });
         const rootDataset = crate.getRootDataset();
         const identifier = rootDataset?.identifier.replace(configuration.baseUrl, "");
-        console.log(`Exporting and uploading ${identifier} to S3`);
+        console.log(`Exporting and uploading '${identifier}' to S3`);
 
         await bucket.upload({
             target: path.join(identifier, "ro-crate-metadata.json"),
             json: crate,
         });
-        console.log(rootDataset);
         if (rootDataset.hasPart) {
             for (let part of rootDataset.hasPart) {
                 if (part["@type"] === "File") {
@@ -62,16 +61,21 @@ async function exportItems({ entityType = "Dataset" }) {
                     );
                     let pathExists = await bucket.pathExists({ path: targetImagePath });
                     if (!pathExists) {
-                        await bucket.upload({ target: targetImagePath, localPath });
+                        upload({ bucket, target: targetImagePath, localPath });
                     } else {
                         let fileStatVersionInBucket = await bucket.stat({ path: targetImagePath });
                         let fileStatLocalCopy = await fileStat(localPath);
                         if (fileStatVersionInBucket.ContentLength !== fileStatLocalCopy.size) {
-                            await bucket.upload({ target: targetImagePath, localPath });
+                            upload({ bucket, target: targetImagePath, localPath });
                         }
                     }
                 }
             }
         }
     }
+}
+
+async function upload({ bucket, localPath, target }) {
+    console.log(`  -> Uploading '${localPath}' to '${target}'`);
+    await bucket.upload({ target, localPath });
 }
