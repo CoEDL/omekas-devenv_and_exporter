@@ -43,7 +43,7 @@ async function exportItems({ entityType = "Dataset" }) {
 
         crate = new Crate({ crate });
         const rootDataset = crate.getRootDataset();
-        const identifier = rootDataset?.identifier.replace(configuration.baseUrl, "");
+        const identifier = rootDataset?.repositoryIdentifier.replace(configuration.baseUrl, "");
         console.log(`Exporting and uploading '${identifier}' to S3`);
 
         await bucket.upload({

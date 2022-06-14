@@ -4,38 +4,6 @@ const { groupBy, compact } = pkg;
 import validator from "validator";
 import * as configuration from "../configuration.js";
 
-// export class Items {
-//     constructor({ entityType }) {
-//         if (!entityType) {
-//             console.log(`'entityType' must be provided when instantiating 'Items'`);
-//             return;
-//         }
-//         this.entityType = entityType;
-//     }
-
-//     async loadItems({ baseUrl }) {
-//         if (!this.entityType) return;
-//         for (let item of await models.item.findAll({
-//             where: {
-//                 "$id_resource.resource_class.local_name$": this.entityType,
-//             },
-//             include: [
-//                 {
-//                     model: models.resource,
-//                     as: "id_resource",
-//                     include: [{ model: models.resource_class, as: "resource_class" }],
-//                 },
-//             ],
-//         })) {
-//             // console.log(item);
-//             let crate = new CrateBuilder({ baseUrl });
-//             await crate.load({ rootDatasetId: item.id });
-//             // crate = crate.export();
-//             // console.log(JSON.stringify(crate, null, 2));
-//         }
-//     }
-// }
-
 export class Item {
     constructor({ baseUrl, id, asRootDataset = false }) {
         this.id = id;
@@ -66,6 +34,10 @@ export class Item {
         });
         let properties = await this.getProperties({ resource: item.id_resource });
 
+        let repositoryIdentifier = this.getRepositoryIdentifier({
+            resource: item.id_resource,
+            properties,
+        });
         if (this.asRootDataset) {
             const type = configuration.typeToAtTypeMapping[
                 item.id_resource.resource_class.local_name
@@ -74,44 +46,22 @@ export class Item {
             item = {
                 ...this.rootDataset,
                 "@type": type,
+                repositoryIdentifier,
                 name: item.id_resource.title,
                 ...properties,
             };
         } else {
-            let identifier = properties.identifier[0];
+            let identifier = properties.identifier;
             item = {
                 "@id": identifier,
                 "@type": item.id_resource.resource_class.local_name,
+                repositoryIdentifier,
                 name: item.id_resource.title,
                 ...properties,
             };
         }
         return { item, relatedItems: this.relatedItems };
     }
-
-    // async getItem({ item }) {
-    //     let resource = await item.getId_resource();
-
-    //     // const media = await getMedia({ item });
-    //     const owner = await getOwner({ resource });
-    //     const resourceClass = await getResourceClass({ resource });
-    //     const properties = await getProperties({ resource });
-    //     const thumbnail = await getThumbnail({ resource });
-
-    //     item = {
-    //         id: item.id,
-    //         title: resource.title,
-    //         is_public: resource.is_public,
-    //         resource_type: resource.resource_type,
-    //         // media,
-    //         owner,
-    //         resourceClass,
-    //         properties,
-    //         thumbnail,
-    //     };
-
-    //     return item;
-    // }
 
     async getOwner({ resource }) {
         let attributes = ["email", "name", "role", "is_active"];
@@ -147,13 +97,9 @@ export class Item {
                 } else if (resource.resource_class.local_name === "Dataset") {
                     v.value = this.identifier({ className: "item", identifier: v.value });
                 } else {
-                    let value = v.value;
-                    if (validator.isURL(v.value)) {
-                        value = resource.title;
-                    }
                     v.value = this.identifier({
                         className: resource.resource_class.local_name,
-                        identifier: value,
+                        identifier: v.value,
                     });
                 }
             }
@@ -182,6 +128,7 @@ export class Item {
                 properties.push(p);
             }
         }
+
         properties = groupBy(properties, "local_name");
         Object.keys(properties).forEach((property) => {
             properties[property] = properties[property].map((entry) =>
@@ -265,8 +212,23 @@ export class Item {
             } else if (["collection"].includes(className.toLowerCase())) {
                 return `${this.baseUrl}/collection/${identifier}`;
             } else {
-                return `${this.baseUrl}/${className.toLowerCase()}/#${identifier}`;
+                return `${this.baseUrl}/${className.toLowerCase()}/${identifier}`;
             }
         }
+    }
+
+    getRepositoryIdentifier({ resource, properties }) {
+        const className = resource.resource_class.local_name;
+        const name = resource.title;
+        if (validator.isURL(properties.identifier)) {
+            if (properties.identifier.match(configuration.baseUrl)) {
+                return properties.identifier;
+            }
+        }
+        return this.identifier({ className, identifier: name });
+    }
+
+    getProperty({ properties, name }) {
+        return properties.filter((p) => p.local_name === name);
     }
 }

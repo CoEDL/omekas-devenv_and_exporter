@@ -73,4 +73,8 @@ export class Crate {
     getRootDataset() {
         return this.rootDataset;
     }
+
+    getCrate() {
+        return this.crate;
+    }
 }
