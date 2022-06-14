@@ -1,5 +1,5 @@
 import { models, sequelize, initConnection } from "./models/index.js";
-import { configuration } from "./configuration.js";
+import * as configuration from "./configuration.js";
 import { CrateBuilder, Crate } from "./src/crate.js";
 import { getS3Handle } from "./src/getS3Handle.js";
 import path from "path";

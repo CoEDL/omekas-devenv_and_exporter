@@ -2,7 +2,7 @@ import { models } from "../models/index.js";
 import pkg from "lodash";
 const { groupBy, compact } = pkg;
 import validator from "validator";
-import { configuration } from "../configuration.js";
+import * as configuration from "../configuration.js";
 
 // export class Items {
 //     constructor({ entityType }) {
