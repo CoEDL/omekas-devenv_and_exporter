@@ -1,6 +1,6 @@
 import { models } from "../models/index.js";
 import pkg from "lodash";
-const { groupBy, compact } = pkg;
+const { groupBy, isString, isNumber } = pkg;
 import validator from "validator";
 import * as configuration from "../configuration.js";
 
@@ -203,10 +203,14 @@ export class Item {
     }
 
     identifier({ className, identifier }) {
-        if (validator.isURL(identifier)) {
+        if (isString(identifier) && validator.isURL(identifier)) {
             return identifier;
         } else {
-            identifier = identifier.replace(/\s/g, "_");
+            if (isString(identifier)) {
+                identifier = identifier.replace(/\s/g, "_");
+            } else if (isNumber(identifier)) {
+                identifier = `${className}${identifier}`;
+            }
             if (["item", "dataset"].includes(className.toLowerCase())) {
                 return `${this.baseUrl}/item/${identifier}`;
             } else if (["collection"].includes(className.toLowerCase())) {
@@ -225,7 +229,7 @@ export class Item {
                 return properties.identifier;
             }
         }
-        return this.identifier({ className, identifier: name });
+        return this.identifier({ className, identifier: resource.id });
     }
 
     getProperty({ properties, name }) {
