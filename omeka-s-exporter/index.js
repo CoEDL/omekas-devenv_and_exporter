@@ -5,6 +5,7 @@ import { getS3Handle } from "./src/getS3Handle.js";
 import path from "path";
 import fsExtra from "fs-extra";
 const { readdir, stat: fileStat } = fsExtra;
+import { Store } from "/Users/mlarosa/src/pdsc/nocfl-js/index.js";
 
 await initConnection({ db: configuration.db });
 try {
@@ -43,30 +44,36 @@ async function exportItems({ entityType = "Dataset" }) {
 
         crate = new Crate({ crate });
         const rootDataset = crate.getRootDataset();
-        const identifier = rootDataset?.repositoryIdentifier.replace(configuration.baseUrl, "");
+        let identifier = rootDataset?.repositoryIdentifier.replace(`${configuration.baseUrl}/`, "");
+
+        let [className, id] = identifier.split("/");
+        let store = new Store({
+            domain: configuration.domain,
+            className,
+            id,
+            credentials: configuration.awsConfig,
+        });
+        if (!(await store.itemExists())) await store.createItem();
+
         console.log(`Exporting and uploading '${identifier}' to S3`);
 
-        await bucket.upload({
-            target: path.join(identifier, "ro-crate-metadata.json"),
-            json: crate.getCrate(),
-        });
         if (rootDataset.hasPart) {
             for (let part of rootDataset.hasPart) {
                 if (part["@type"] === "File") {
-                    const targetImagePath = path.join(identifier, part["@id"]);
+                    const targetImagePath = part["@id"];
                     const localPath = path.join(
                         configuration.pathToFiles,
                         "original",
                         part.filename
                     );
-                    let pathExists = await bucket.pathExists({ path: targetImagePath });
+                    let pathExists = await store.pathExists({ path: targetImagePath });
                     if (!pathExists) {
-                        upload({ bucket, target: targetImagePath, localPath });
+                        await upload({ store, target: targetImagePath, localPath });
                     } else {
-                        let fileStatVersionInBucket = await bucket.stat({ path: targetImagePath });
+                        let fileStatVersionInBucket = await store.stat({ path: targetImagePath });
                         let fileStatLocalCopy = await fileStat(localPath);
                         if (fileStatVersionInBucket.ContentLength !== fileStatLocalCopy.size) {
-                            upload({ bucket, target: targetImagePath, localPath });
+                            await upload({ store, target: targetImagePath, localPath });
                         }
                     }
                 }
@@ -75,7 +82,7 @@ async function exportItems({ entityType = "Dataset" }) {
     }
 }
 
-async function upload({ bucket, localPath, target }) {
+async function upload({ store, localPath, target }) {
     console.log(`  -> Uploading '${localPath}' to '${target}'`);
-    await bucket.upload({ target, localPath });
+    await store.put({ target, localPath });
 }
