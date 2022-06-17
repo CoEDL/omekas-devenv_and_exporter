@@ -21,6 +21,9 @@ export const awsConfig = {
     region: "us-east-1",
 };
 
+// the domain of the data - this will prefix the data by the domain in the storage
+export const domain = "catalog.cherokee.org";
+
 // When exporting data, this baseUrl will be used for all links
 export const baseUrl = "http://catalog.cherokee.org";
 
