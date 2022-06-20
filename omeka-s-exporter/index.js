@@ -40,10 +40,8 @@ async function exportItems({ entityType = "Dataset" }) {
 
         // TODO skip uploading unless newer than specified time and ready to upload
 
-        let { bucket } = await getS3Handle({ configuration: configuration.awsConfig });
-
-        crate = new Crate({ crate });
-        const rootDataset = crate.getRootDataset();
+        const crateMgr = new Crate({ crate });
+        const rootDataset = crateMgr.getRootDataset();
         let identifier = rootDataset?.repositoryIdentifier.replace(`${configuration.baseUrl}/`, "");
 
         let [className, id] = identifier.split("/");
@@ -54,6 +52,7 @@ async function exportItems({ entityType = "Dataset" }) {
             credentials: configuration.awsConfig,
         });
         if (!(await store.itemExists())) await store.createItem();
+        store.put({ target: "ro-crate-metadata.json", json: crate });
 
         console.log(`Exporting and uploading '${identifier}' to S3`);
 
