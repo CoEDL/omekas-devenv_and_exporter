@@ -38,6 +38,7 @@ export class Item {
             resource: item.id_resource,
             properties,
         });
+        if (!properties.identifier) properties.identifier = repositoryIdentifier;
         if (this.asRootDataset) {
             const type = configuration.typeToAtTypeMapping[
                 item.id_resource.resource_class.local_name
@@ -116,7 +117,7 @@ export class Item {
             let valueResource = await v.getValue_resource();
             if (valueResource) {
                 if (valueResource?.resource_type === "Omeka\\Entity\\Media") {
-                    valueResource = await this.getRelatedMedia({ id: valueResource.id });
+                    // valueResource = await this.getRelatedMedia({ id: valueResource.id });
                 } else if (valueResource?.resource_type === "Omeka\\Entity\\Item") {
                     valueResource = await this.getRelatedItem({ id: valueResource.id });
                 }
@@ -129,13 +130,17 @@ export class Item {
             }
         }
 
+        // add all attached media files
         properties = groupBy(properties, "local_name");
+
         Object.keys(properties).forEach((property) => {
             properties[property] = properties[property].map((entry) =>
                 entry.resource ? entry.resource : entry.value
             );
             if (properties[property].length === 1) properties[property] = properties[property][0];
         });
+        let { media } = await this.getAttachedMedia({ id: this.id });
+        properties.hasPart = media;
 
         delete properties.title;
         return properties;
@@ -170,23 +175,40 @@ export class Item {
         return reference.value;
     }
 
-    async getRelatedMedia({ id }) {
-        let media = await models.media.findOne({ where: { id } });
-        media = media.get();
+    // async getRelatedMedia({ id }) {
+    //     let media = await models.media.findOne({ where: { id } });
+    //     media = media.get();
 
-        let m = {
-            "@id": media.source,
-            "@type": "File",
-            contentSize: media.size,
-            encodingFormat: media.media_type,
-            ingester: media.ingester,
-            sha256: media.sha256,
-            filename: `${media.storage_id}.${media.extension}`,
-            alterName: media.alt_text,
-            inLanguage: media.lang,
-        };
-        // console.log(JSON.stringify(m, null, 2));
-        return m;
+    //     let m = {
+    //         "@id": media.source,
+    //         "@type": "File",
+    //         contentSize: media.size,
+    //         encodingFormat: media.media_type,
+    //         ingester: media.ingester,
+    //         sha256: media.sha256,
+    //         filename: `${media.storage_id}.${media.extension}`,
+    //         alterName: media.alt_text,
+    //         inLanguage: media.lang,
+    //     };
+    //     return m;
+    // }
+
+    async getAttachedMedia({ id }) {
+        let media = await models.media.findAll({ where: { item_id: id } });
+        media = media.map((m) => {
+            return {
+                "@id": m.source,
+                "@type": "File",
+                contentSize: m.size,
+                encodingFormat: m.media_type,
+                ingester: m.ingester,
+                sha256: m.sha256,
+                filename: `${m.storage_id}.${m.extension}`,
+                alterName: m.alt_text,
+                inLanguage: m.lang,
+            };
+        });
+        return { media };
     }
 
     getIdentifier({ properties, title, className }) {
@@ -224,12 +246,15 @@ export class Item {
     getRepositoryIdentifier({ resource, properties }) {
         const className = resource.resource_class.local_name;
         const name = resource.title;
-        if (validator.isURL(properties.identifier)) {
-            if (properties.identifier.match(configuration.baseUrl)) {
-                return properties.identifier;
+        try {
+            if (validator.isURL(properties.identifier)) {
+                if (properties.identifier.match(configuration.baseUrl)) {
+                    return properties.identifier;
+                }
             }
+        } catch (error) {
+            return this.identifier({ className, identifier: resource.id });
         }
-        return this.identifier({ className, identifier: resource.id });
     }
 
     getProperty({ properties, name }) {
