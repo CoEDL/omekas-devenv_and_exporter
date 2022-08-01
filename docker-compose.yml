@@ -15,7 +15,7 @@ services:
       MARIADB_PASSWORD: password 
       MARIADB_DATABASE: omeka
     volumes:
-      - ./mariadb-data:/var/lib/mysql
+      - ./omeka-data/mariadb-data:/var/lib/mysql
     ports:
       - 3306:3306
     networks:
