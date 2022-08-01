@@ -25,11 +25,11 @@ services:
     image: omeka-s    
     restart: always
     volumes:
-      - ./config:/var/www/html/config
-      - ./files:/var/www/html/files
-      - ./modules:/var/www/html/modules
-      - ./themes:/var/www/html/themes
-      - ./logs:/var/www/html/logs
+      - ./omeka-data/config:/var/www/html/config
+      - ./omeka-data/files:/var/www/html/files
+      - ./omeka-data/modules:/var/www/html/modules
+      - ./omeka-data/themes:/var/www/html/themes
+      - ./omeka-data/logs:/var/www/html/logs
       - ./php.ini:/etc/php/7.4/apache2/php.ini
     ports:
       - 80:80

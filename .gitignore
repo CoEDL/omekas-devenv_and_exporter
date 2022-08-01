@@ -1,7 +1,8 @@
-files
-mariadb-data
-modules
-themes
+omeka-data/files
+omeka-data/modules
+omeka-data/themes
+omeka-data/logs
+omeka-data/mariadb-data
 configuration.js
 node_modules
 s3-data
