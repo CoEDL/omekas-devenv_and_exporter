@@ -5,14 +5,18 @@ import { getS3Handle } from "./src/getS3Handle.js";
 import path from "path";
 import fsExtra from "fs-extra";
 const { readdir, stat: fileStat } = fsExtra;
-import { Store } from "/Users/mlarosa/src/pdsc/nocfl-js/index.js";
+import { Store } from "@coedl/nocfl-js";
 
 await initConnection({ db: configuration.db });
 try {
     await sequelize.authenticate();
     // console.log("Connected to the db!");
-    for (let entityType of configuration.entityTypesToExport) {
-        await exportItems({ entityType });
+    if (configuration.entityTypesToExport.length) {
+        for (let entityType of configuration.entityTypesToExport) {
+            await exportItems({ entityType });
+        }
+    } else {
+        await exportItems({});
     }
 
     await sequelize.close();
@@ -21,11 +25,15 @@ try {
     process.exit();
 }
 
-async function exportItems({ entityType = "Dataset" }) {
-    for (let item of await models.item.findAll({
-        where: {
+async function exportItems({ entityType = undefined }) {
+    let where = {};
+    if (entityType) {
+        where = {
             "$id_resource.resource_class.local_name$": entityType,
-        },
+        };
+    }
+    for (let item of await models.item.findAll({
+        where,
         include: [
             {
                 model: models.resource,
@@ -45,12 +53,18 @@ async function exportItems({ entityType = "Dataset" }) {
         let identifier = rootDataset?.repositoryIdentifier.replace(`${configuration.baseUrl}/`, "");
 
         let [className, id] = identifier.split("/");
-        let store = new Store({
-            domain: configuration.domain,
-            className,
-            id,
-            credentials: configuration.awsConfig,
-        });
+        let store;
+        try {
+            store = new Store({
+                domain: configuration.domain,
+                className,
+                id,
+                credentials: configuration.awsConfig,
+            });
+        } catch (error) {
+            console.error(`${error.message}: ${className}/${id}`);
+            continue;
+        }
         if (!(await store.itemExists())) await store.createItem();
         store.put({ target: "ro-crate-metadata.json", json: crate });
 
