@@ -10,19 +10,19 @@ services:
     image: mariadb:latest
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: rootpw 
-      MARIADB_USER: user 
-      MARIADB_PASSWORD: password 
+      MARIADB_ROOT_PASSWORD: rootpw
+      MARIADB_USER: user
+      MARIADB_PASSWORD: password
       MARIADB_DATABASE: omeka
     volumes:
       - ./omeka-data/mariadb-data:/var/lib/mysql
     ports:
-      - 3306:3306
+      - 3307:3306
     networks:
       - modpdsc_default
 
   omeka:
-    image: omeka-s    
+    image: omeka-s
     restart: always
     volumes:
       - ./omeka-data/config:/var/www/html/config
@@ -35,7 +35,7 @@ services:
       - 80:80
     networks:
       - modpdsc_default
-  
+
   minio:
       image: minio/minio:latest
       restart: always
