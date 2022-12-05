@@ -17,6 +17,7 @@ export class Item {
     }
 
     async load() {
+        let files = [];
         let item = await models.item.findOne({
             where: {
                 id: this.id,
@@ -33,6 +34,7 @@ export class Item {
             ],
         });
         let properties = await this.getProperties({ resource: item.id_resource });
+        files = [...properties.hasPart];
 
         let repositoryIdentifier = this.getRepositoryIdentifier({
             resource: item.id_resource,
@@ -51,6 +53,7 @@ export class Item {
                 name: item.id_resource.title,
                 ...properties,
             };
+            if (item.hasPart) item.hasPart = item.hasPart.map((p) => ({ "@id": p["@id"] }));
         } else {
             let identifier = properties.identifier;
             item = {
@@ -60,8 +63,9 @@ export class Item {
                 name: item.id_resource.title,
                 ...properties,
             };
+            if (item.hasPart) item.hasPart = item.hasPart.map((p) => ({ "@id": p["@id"] }));
         }
-        return { item, relatedItems: this.relatedItems };
+        return { item, relatedItems: this.relatedItems, files };
     }
 
     async getOwner({ resource }) {

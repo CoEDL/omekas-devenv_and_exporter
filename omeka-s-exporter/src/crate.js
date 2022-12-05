@@ -18,9 +18,9 @@ export class CrateBuilder {
     }
 
     async load({ rootDatasetId }) {
-        let relatedItems;
+        let relatedItems, files;
         let item = new Item({ id: rootDatasetId, baseUrl: this.baseUrl, asRootDataset: true });
-        ({ item, relatedItems } = await item.load());
+        ({ item, relatedItems, files } = await item.load());
         this.graph.push(item);
         let loaded = [rootDatasetId];
         let items = [];
@@ -32,7 +32,7 @@ export class CrateBuilder {
             return item["@id"].match(re) ? null : item;
         });
 
-        this.graph = [...this.graph, ...items];
+        this.graph = [...this.graph, ...items, ...files];
     }
 
     async loadRelatedItem({ items, item, loaded }) {
