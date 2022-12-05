@@ -10,14 +10,14 @@
     "author": "Marco La Rosa",
     "license": "ISC",
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.107.0",
-        "@aws-sdk/lib-storage": "^3.108.1",
-        "@aws-sdk/s3-request-presigner": "^3.107.0",
-        "@coedl/nocfl-js": "^1.7.1",
-        "fs-extra": "^10.1.0",
+        "@aws-sdk/client-s3": "^3.223.0",
+        "@aws-sdk/lib-storage": "^3.223.0",
+        "@aws-sdk/s3-request-presigner": "^3.223.0",
+        "@coedl/nocfl-js": "^1.15.1",
+        "fs-extra": "^11.1.0",
         "lodash": "^4.17.21",
         "mysql2": "^2.3.3",
-        "sequelize": "^6.21.3",
+        "sequelize": "^6.26.0",
         "validator": "^13.7.0"
     },
     "devDependencies": {
